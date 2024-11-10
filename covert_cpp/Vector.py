@@ -29,6 +29,12 @@ class Vector:
     def __mul__(self, scalar):
         return Vector(*(self.coords * scalar))
 
+    def __rmul__(self, scalar):
+        return Vector(*(self.coords * scalar))
+
+    def __neg__(self):
+        return Vector(*(-self.coords))
+
     def normalize(self):
         norm = np.linalg.norm(self.coords)
         if norm == 0:
@@ -37,3 +43,6 @@ class Vector:
 
     def __eq__(self, other):
         return np.allclose(self.coords, other.coords, atol=1e-4)
+
+    def cross(self, other):
+        return Vector(*np.cross(self.coords, other.coords))

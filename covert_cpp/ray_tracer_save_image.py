@@ -1,4 +1,4 @@
-# ray_tracer.py (Corrected for off-screen rendering)
+# ray_tracer.py (Updated for rendering from multiple angles)
 import sys
 import numpy as np
 from Color import Color
@@ -7,7 +7,9 @@ from Hit import Hit
 from Sphere import Sphere
 from Plane import Plane
 from Light import Light
-from PIL import Image  # Import PIL for image saving
+from PIL import Image
+import math
+import os
 
 # Window dimensions
 window_width = 300
@@ -20,7 +22,7 @@ background = Color(0.5, 0.8, 1.0)
 # Lights
 lights = []
 
-# Camera setup
+# Camera setup - these will be updated for each angle
 eye = Vector(0, 0, 4)
 u = Vector(1, 0, 0)
 v = Vector(0, 1, 0)
@@ -32,8 +34,8 @@ H = 0.5
 # Counter for testing (similar to C++ code)
 counter = 0
 
-# Filename for the output image
-output_image_filename = "ray_traced_image.png"
+# Output directory for images
+output_dir = "rendered_images"
 
 def setup_scene():
     global objects, lights
@@ -74,6 +76,25 @@ def setup_scene():
     )
     lights.append(light2)
 
+def update_camera(angle_degrees, radius=4.0, height=0.0):
+    """
+    Updates the camera's position and orientation based on the given angle.
+    The camera moves around the y-axis at a fixed radius and height.
+    """
+    global eye, u, v, n
+
+    theta = math.radians(angle_degrees)
+    eye = Vector(radius * math.cos(theta), height, radius * math.sin(theta))
+
+    # Camera looks at the origin
+    center = Vector(0, 0, 0)
+    n = (eye - center).normalize()
+
+    # Up vector
+    up = Vector(0, 1, 0)
+    u = up.cross(n).normalize()
+    v = n.cross(u)
+
 def intersect(source, d):
     global counter
     counter += 1
@@ -111,8 +132,8 @@ def shade(hit):
         if s.dot(m) < 0:
             continue
 
-        # Shadow feeler
-        feeler = intersect(p, s)
+        # Shadow feeler (offset to avoid self-intersection)
+        feeler = intersect(p + m * 0.0001, s)
         if feeler.object is None or feeler.t < 0 or feeler.t > 1:
             # Diffuse reflection
             diffuse_intensity = max(s.dot(m), 0.0)
@@ -125,17 +146,16 @@ def shade(hit):
 
     return color.clamp()
 
-def render_scene():
+def render_scene(output_image_filename):
     # Create a numpy array to store pixel data
     pixel_data = np.zeros((window_height, window_width, 3), dtype=np.uint8)
 
     for r in range(window_height):
         for c in range(window_width):
-            # Construct ray
-            dx = -n.x * N + W * (2.0 * c / (window_width - 1) - 1) * u.x + H * (2.0 * r / (window_height - 1) - 1) * v.x
-            dy = -n.y * N + W * (2.0 * c / (window_width - 1) - 1) * u.y + H * (2.0 * r / (window_height - 1) - 1) * v.y
-            dz = -n.z * N + W * (2.0 * c / (window_width - 1) - 1) * u.z + H * (2.0 * r / (window_height - 1) - 1) * v.z
-            d = Vector(dx, dy, dz).normalize()
+            # Construct ray direction d
+            u_scalar = W * (2.0 * c / (window_width - 1) - 1)
+            v_scalar = H * (2.0 * r / (window_height - 1) - 1)
+            d = (-n * N + u * u_scalar + v * v_scalar).normalize()
 
             # Intersect ray with scene
             hit = intersect(eye, d)
@@ -151,19 +171,27 @@ def render_scene():
             ]
 
     # Save the pixel_data array as an image
-    save_image(pixel_data)
+    save_image(pixel_data, output_image_filename)
 
-def save_image(pixel_data):
+def save_image(pixel_data, filename):
     # Create a PIL image from the pixel data
     image = Image.fromarray(pixel_data, 'RGB')
 
+    # Ensure output directory exists
+    os.makedirs(output_dir, exist_ok=True)
+
     # Save the image to a file
-    image.save(output_image_filename)
-    print(f"Image saved to {output_image_filename}")
+    image.save(os.path.join(output_dir, filename))
+    print(f"Image saved to {os.path.join(output_dir, filename)}")
 
 def main():
     setup_scene()
-    render_scene()
+    # Render images at different angles
+    for angle in range(0, 360, 10):  # Every 10 degrees
+        print(f"Rendering angle {angle} degrees")
+        update_camera(angle_degrees=angle)
+        output_filename = f"ray_traced_image_{angle}.png"
+        render_scene(output_filename)
 
 if __name__ == "__main__":
     main()
