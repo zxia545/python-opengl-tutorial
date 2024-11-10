@@ -133,7 +133,7 @@ class Tu01Win(GlutWindow):
 
 	def ogl_draw(self):
 
-		print "draw++"
+		# print "draw++"
 		#print self.context.MVP
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
